@@ -130,5 +130,6 @@ dmypy.json
 
 
 #osm
-.osm
-OSM/tmc.osm
+*.osm
+OSM/tmc_MD.osm
+OSM/tmc_VA.osm

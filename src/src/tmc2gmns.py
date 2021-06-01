@@ -11,7 +11,6 @@ In the end, the link performance file of underlying network is generated with tm
 # coding:utf-8
 
 import os
-import math
 import datetime
 import numpy as np
 import pandas as pd
@@ -396,11 +395,11 @@ def osm_link_performance(tmc_path,osm_path):
     print("link_performance_osm.csv is generated!")
 
 
-if __name__ == "__main__":
-    tmc_path = '/usr/local/home/ysx28/Desktop/GMNS/tmc2gmns/TMC2GMNS/src/tmc'
-    osm_path = '/usr/local/home/ysx28/Desktop/GMNS/tmc2gmns/TMC2GMNS/src/osm'
+# if __name__ == "__main__":
+#     tmc_path = '/usr/local/home/ysx28/Desktop/GMNS/tmc2gmns/TMC2GMNS/src/tmc'
+#     osm_path = '/usr/local/home/ysx28/Desktop/GMNS/tmc2gmns/TMC2GMNS/src/osm'
 
-    import tmc2gmns as tg
-    tg.Convert_TMC(tmc_path) 
-    tg.mapmatch(tmc_path,osm_path)
-    tg.osm_link_performance(tmc_path,osm_path)
+#     import tmc2gmns as tg
+#     tg.Convert_TMC(tmc_path) 
+#     tg.mapmatch(tmc_path,osm_path)
+#     tg.osm_link_performance(tmc_path,osm_path)

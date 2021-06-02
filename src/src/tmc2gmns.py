@@ -15,7 +15,6 @@ import datetime
 import numpy as np
 import pandas as pd
 
-import time
 import os.path
 import MapMatching4GMNS
 
@@ -37,8 +36,7 @@ def Convert_TMC(tmc_path):
     for file in files: 
         if file[:18] == 'TMC_Identification':
             tmc = pd.read_csv(tmc_path + os.sep + file)
-        break
-    tmc = pd.read_csv(tmc_path + os.sep + file)
+            break
     
     '''build node.csv'''
     print('converting tmc data into gmns format...')

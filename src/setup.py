@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="tmc2gmns", 
-    version="0.1.4",
+    version="0.1.5",
     author="Dr. Xuesong Zhou, Xianbiao Hu, Jiawei Lu, Chris Yang Song",
     author_email="xzhou74@asu.edu, xbhu@mst.edu, jiaweil9@asu.edu, 845107945@qq.com",
     description="An open-source python package converting TMC data into GMNS format.",
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     install_requires=[                                 
     # 'os',
-    # 'datetime',
+    'osm2gmns >=0.5.2',
     'numpy>=1.19.2',
     'pandas>=1.1.3',
     'MapMatching4GMNS>=0.2.11'

@@ -1,4 +1,4 @@
-,utd,utd_long,utd_lat,order,piece,linkid,group,utd_citycode,detectors,detid,length,pos,fclass,road,limit,detectors_citycode,lanes,detectors_long,detectors_lat
+,utd,utd_long,utd_lat,order,piece,linkid,group,utd_citycode,detectors,detid,detectors_length,pos,fclass,road,limit,detectors_citycode,lanes,detectors_long,detectors_lat
 0,89398,-2.264742,53.48562800000001,1,1,0,0.1,manchester,15351.0,N31111S,0.6206433655558979,0.100083752452572,primary,Silk Street,48.0,manchester,1.0,-2.260317,53.489087
 1,89399,-2.264694,53.486187,2,1,0,0.1,manchester,15351.0,N31111S,0.6206433655558979,0.100083752452572,primary,Silk Street,48.0,manchester,1.0,-2.260317,53.489087
 2,89400,-2.264653,53.48682,3,1,0,0.1,manchester,15351.0,N31111S,0.6206433655558979,0.100083752452572,primary,Silk Street,48.0,manchester,1.0,-2.260317,53.489087

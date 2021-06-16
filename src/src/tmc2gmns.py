@@ -317,7 +317,7 @@ def mapmatch(tmc_path,osm_path):
             og.outputNetToCSV(net, output_folder=osm_path)
         break
     
-    create_folder(os.path.join(os.path.dirname(os.path.realpath('__file__')), 'data/testdata'))
+    create_folder(os.path.join(os.path.dirname(os.path.realpath('__file__')), 'data/testdata'))#to local
 
     import shutil
     source_link_osm = os.path.join(os.path.join(os.path.dirname(os.path.realpath('__file__')),osm_path),'link.csv')

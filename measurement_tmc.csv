@@ -1,4 +1,4 @@
-tmc_link_id,corridor_id,corridor_link_order,from_node_id,to_node_id,time_period,date,geometry,volume,travel_time,speed,reference_speed,density,queue,notes
+link_id_tmc,corridor_id,corridor_link_order,from_node_id,to_node_id,time_period,date,geometry,volume,travel_time,speed,reference_speed,density,queue,notes
 100000001,VA-7_EASTBOUND,38.0,100000001,100000002,0000_0015,2015-04-01,"LINESTRING (-77.3715 39.0144,-77.3709 39.0141)",,,44,,,,
 100000001,VA-7_EASTBOUND,38.0,100000001,100000002,0015_0030,2015-04-01,"LINESTRING (-77.3715 39.0144,-77.3709 39.0141)",,,44,,,,
 100000001,VA-7_EASTBOUND,38.0,100000001,100000002,,,"LINESTRING (-77.3715 39.0144,-77.3709 39.0141)",,,,,,,

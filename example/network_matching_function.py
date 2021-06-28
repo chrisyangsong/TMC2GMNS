@@ -139,7 +139,7 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
     link_tmc = pd.read_csv(link_tmc)
 
     reading_dict = {}
-    gp = reading.groupby('_vatmc_code')
+    gp = reading.groupby('tmc_code')
     for key, form in gp:
         reading_dict[key] = {
             'measurement_tstamp':form['measurement_tstamp'].tolist(),

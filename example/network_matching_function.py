@@ -132,10 +132,12 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file):
 
 
 def ConvertTMCReading2Measurement(Reading,link_tmc):
+
+    link_tmc = pd.read_csv('link_tmc.csv')
     ## reading by detid
     reading = pd.read_csv('Reading.csv')
     reading = reading.loc[0:5000]
-    link_tmc = pd.read_csv('link_tmc.csv')
+
 
     reading_dict = {}
     gp = reading.groupby('tmc_code')
@@ -144,7 +146,7 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
             'measurement_tstamp':form['measurement_tstamp'].tolist(),
             'speed':form['speed'].tolist()
             }
-    time_period_reading = int(form['measurement_tstamp'].tolist()[1][-5:-3]) - int(form['measurement_tstamp'].tolist()[0][-5:-3]) 
+
 
 
     '''build measurement_tmc.csv''' 
@@ -166,13 +168,14 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
     measurement_tmc['queue'] = None
     measurement_tmc['notes'] = None
 
+
     k=0
     p=1
     measurement_tmc_dict = {}
     for i in link_tmc.index:
         try:
             reading_dict_selected = reading_dict[link_tmc['name'][i]]
-            for j in range(0,len(reading_dict_selected['measurement_tstamp']),int(15/time_period_reading)):
+            for j in range(0,len(reading_dict_selected['measurement_tstamp'])):
                 measurement_tmc_dict[k] = {'link_id_tmc': i,\
                                                 'corridor_id': link_tmc['corridor_id'][i],\
                                                 'corridor_link_order' : link_tmc['corridor_link_order'][i],\
@@ -180,13 +183,13 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
                                                 'to_node_id': link_tmc.loc[i,'to_node_id'], \
                                                 'time_period': reading_dict_selected['measurement_tstamp'][j][11:13]+\
                                                     reading_dict_selected['measurement_tstamp'][j][14:16]+'_'+\
-                                                    reading_dict_selected['measurement_tstamp'][j+int(15/time_period_reading)][11:13]+\
-                                                    reading_dict_selected['measurement_tstamp'][j+int(15/time_period_reading)][14:16],\
+                                                    reading_dict_selected['measurement_tstamp'][j+1][11:13]+\
+                                                    reading_dict_selected['measurement_tstamp'][j+1][14:16],\
                                                 'date': reading_dict_selected['measurement_tstamp'][j][:10],\
                                                 'geometry': link_tmc['geometry'][i],\
                                                 'volume': None,\
                                                 'travel_time': None,\
-                                                'speed':round(np.mean(reading_dict_selected['speed'][j:j+int(15/time_period_reading)])),\
+                                                'speed':round(np.mean(reading_dict_selected['speed'][j:j+1])),\
                                                 'reference_speed': None,\
                                                 'density': None,\
                                                 'queue': None,\
@@ -222,6 +225,7 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
     measurement_tmc.to_csv('measurement_tmc.csv',index = False)
     print('measurement_tmc.csv generated!')
 
+
 def LLs2Dist(lon1, lat1, lon2, lat2): #WGS84 transfer coordinate system to distance(meter) #xy #credit to xtHuang0927
     R = 6371
     dLat = (lat2 - lat1) * math.pi / 180.0
@@ -242,53 +246,53 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
     matching_tmc2gmns_dict = {}
     k = 0
     p = 1
-    for i in range(len(link_base)):
-        lon_list = []
-        lat_list = [] 
-        link_geometry_list = link_base.loc[i,'geometry'][12:-1].split(", ")
-        for link_geometry in link_geometry_list:
-            lon_list.append(float(link_geometry.split(" ")[0]))
-            lat_list.append(float(link_geometry.split(" ")[1]))
-        center_lon = np.mean(lon_list)
-        center_lat = np.mean(lat_list)
 
+    for j in link_tmc.index:
+        lon_tmc_list = []
+        lat_tmc_list = []
+        link_tmc_geometry_list = link_tmc.loc[j,'geometry'][12:-1].split(",")
+        for link_tmc_geometry in link_tmc_geometry_list:
+            lon_tmc_list.append(float(link_tmc_geometry.split(" ")[0]))
+            lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
+        center_tmc_lon = np.mean(lon_tmc_list)
+        center_tmc_lat = np.mean(lat_tmc_list)
 
         distance_list = []
-        for j in link_tmc.index:
-            lon_tmc_list = []
-            lat_tmc_list = []
-            link_tmc_geometry_list = link_tmc.loc[j,'geometry'][12:-1].split(",")
-            for link_tmc_geometry in link_tmc_geometry_list:
-                lon_tmc_list.append(float(link_tmc_geometry.split(" ")[0]))
-                lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
-            center_tmc_lon = np.mean(lon_tmc_list)
-            center_tmc_lat = np.mean(lat_tmc_list)
-            
+        for i in range(len(link_base)):
+            lon_list = []
+            lat_list = [] 
+            link_geometry_list = link_base.loc[i,'geometry'][12:-1].split(", ")
+            for link_geometry in link_geometry_list:
+                lon_list.append(float(link_geometry.split(" ")[0]))
+                lat_list.append(float(link_geometry.split(" ")[1]))
+            center_lon = np.mean(lon_list)
+            center_lat = np.mean(lat_list)
             distance_list.append(LLs2Dist(center_lon, center_lat, center_tmc_lon, center_tmc_lat))
         nearest_index = distance_list.index(min(distance_list))
 
-        matching_tmc2gmns_dict[k] = {'name_base':link_base['name'][i],\
-                        'link_id_base':link_base['link_id'][i],\
-                        'from_node_id_base':link_base['from_node_id'][i],\
-                        'to_node_id_base':link_base['to_node_id'][i],\
-                        'category_id_base':link_tmc.index.get_loc(link_tmc.iloc[[nearest_index]].index[0])+1,\
-                        'geometry_base':link_base['geometry'][i],\
-                        'name_tmc':link_tmc.iloc[nearest_index]['name'],\
-                        'link_id_tmc':int(link_tmc.iloc[[nearest_index]].index.values[0]),\
-                        'from_node_id_tmc':int(link_tmc.iloc[nearest_index]['from_node_id']),\
-                        'to_node_id_tmc':int(link_tmc.iloc[nearest_index]['to_node_id']),\
-                        'category_id_tmc':link_tmc.index.get_loc(link_tmc.iloc[[nearest_index]].index[0])+1,\
-                        'geometry_tmc':link_tmc.iloc[nearest_index]['geometry']}
+        matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc.loc[j]['name'],\
+                                    'link_id_tmc':link_tmc.loc[[j]].index.values[0],\
+                                    'from_node_id_tmc':link_tmc.loc[j]['from_node_id'],\
+                                    'to_node_id_tmc':link_tmc.loc[j]['to_node_id'],\
+                                    'category_id_tmc':link_tmc.index.get_loc(j)+1,\
+                                    'geometry_tmc':link_tmc.loc[j]['geometry'],\
+                                    'name_base':link_base['name'][nearest_index],\
+                                    'link_id_base':link_base['link_id'][nearest_index],\
+                                    'from_node_id_base':link_base['from_node_id'][nearest_index],\
+                                    'to_node_id_base':link_base['to_node_id'][nearest_index],\
+                                    'category_id_base':link_tmc.index.get_loc(j)+1,\
+                                    'geometry_base':link_base['geometry'][nearest_index],\
+                                    'distance':min(distance_list)}
         k += 1
 
-        # if i % (len(link_base)/10) == 0 : print("{:.0%}".format(i/len(link_base))+' matching completed!')
         
-        if i > p/10 * len(link_base): 
+        if link_tmc.index.get_loc(j) > p/10 * len(link_tmc): 
             print(str(p*10)+"%"+' matching completed!')
             p = p + 1
             
 
     matching_tmc2gmns = pd.DataFrame(matching_tmc2gmns_dict).transpose()
+
     matching_tmc2gmns.to_csv('matching_tmc2gmns.csv',index = False)
     print('matching_tmc2gmns.csv generated!')
 
@@ -302,7 +306,6 @@ def ConvertMeasurementBasedOnMatching(link_base,matching_tmc2gmns,measurement_tm
     measurement_tmc = pd.read_csv('measurement_tmc.csv')
 
     '''build measurement_base.csv''' 
-    
     measurement_base = pd.DataFrame()
     measurement_base['link_id'] = None
     measurement_base['osm_way_id'] = None
@@ -320,41 +323,42 @@ def ConvertMeasurementBasedOnMatching(link_base,matching_tmc2gmns,measurement_tm
     k=0
     p=1
     measurement_base_dict = {}
-    for i in link_base.index:
+    for i in matching_tmc2gmns.index:
         try:
             measurement_tmc_selected = measurement_tmc[measurement_tmc['link_id_tmc'] == matching_tmc2gmns['link_id_tmc'][i]]
+            link_base_selected = link_base[link_base['link_id'] == matching_tmc2gmns['link_id_base'][i]]
             for j in measurement_tmc_selected.index:
-                measurement_base_dict[k] = {'link_id': link_base['link_id'][i],\
-                                                'osm_way_id':link_base['osm_way_id'][i],\
-                                                'from_node_id': link_base['from_node_id'][i],\
-                                                'to_node_id': link_base['to_node_id'][i],\
-                                                'lanes': link_base['lanes'][i], \
-                                                'length': link_base['length'][i], \
+                measurement_base_dict[k] = {'link_id': link_base_selected['link_id'].values[0],\
+                                                'osm_way_id':link_base_selected['osm_way_id'].values[0],\
+                                                'from_node_id': link_base_selected['from_node_id'].values[0],\
+                                                'to_node_id': link_base_selected['to_node_id'].values[0],\
+                                                'lanes': link_base_selected['lanes'].values[0], \
+                                                'length': link_base_selected['length'].values[0], \
                                                 'time_period': measurement_tmc_selected['time_period'][j],\
                                                 'date': measurement_tmc_selected['date'][j],\
-                                                'geometry': link_base['geometry'][i],\
+                                                'geometry': link_base_selected['geometry'].values[0],\
                                                 'volume': None,\
                                                 'speed': measurement_tmc_selected['speed'][j],\
-                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base['osm_way_id'][i])} 
+                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])} 
 
                 k += 1
         except:
-            measurement_base_dict[k] = {'link_id': link_base['link_id'][i],\
-                                                'osm_way_id':link_base['osm_way_id'][i],\
-                                                'from_node_id': link_base['from_node_id'][i],\
-                                                'to_node_id': link_base['to_node_id'][i],\
-                                                'lanes': link_base['lanes'][i], \
-                                                'length': link_base['length'][i], \
+            measurement_base_dict[k] = {'link_id': link_base_selected['link_id'].values[0],\
+                                                'osm_way_id':link_base_selected['osm_way_id'].values[0],\
+                                                'from_node_id': link_base_selected['from_node_id'].values[0],\
+                                                'to_node_id': link_base_selected['to_node_id'].values[0],\
+                                                'lanes': link_base_selected['lanes'].values[0], \
+                                                'length': link_base_selected['length'].values[0], \
                                                 'time_period':None,\
                                                 'date': None,\
-                                                'geometry': link_base['geometry'][i],\
+                                                'geometry': link_base_selected['geometry'].values[0],\
                                                 'volume': None,\
                                                 'speed': None,\
-                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base['osm_way_id'][i])}
+                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])}
 
             k += 1
         
-        if link_base.index.get_loc(i) > p/10 * len(link_base): 
+        if i+1 > p/10 * len(matching_tmc2gmns.index): 
             print(str(p*10)+"%"+' measurement_base completed!')
             p = p + 1
 

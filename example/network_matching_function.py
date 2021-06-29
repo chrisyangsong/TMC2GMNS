@@ -136,7 +136,7 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
     link_tmc = pd.read_csv('link_tmc.csv')
     ## reading by detid
     reading = pd.read_csv('Reading.csv')
-    reading = reading.loc[0:5000]
+    # reading = reading.loc[0:5000]
 
 
     reading_dict = {}

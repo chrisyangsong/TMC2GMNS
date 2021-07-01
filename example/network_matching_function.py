@@ -11,6 +11,9 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file):
     #output:node_tmc,link_tmc
     "Convert TMC Data into GMNS Format"
     tmc = pd.read_csv(TMC_file)
+    tmc = tmc.drop_duplicates(subset=['direction','road_order']).sort_values(by=['direction','road_order'])
+    tmc = tmc.reset_index()
+    tmc = tmc.drop(['index'], 1)
     
     '''build node.csv'''
     print('converting tmc data into gmns format...')
@@ -136,7 +139,7 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
     link_tmc = pd.read_csv('link_tmc.csv')
     ## reading by detid
     reading = pd.read_csv('Reading.csv')
-    # reading = reading.loc[0:5000]
+    reading = reading.loc[0:5000]
 
 
     reading_dict = {}
@@ -236,11 +239,34 @@ def LLs2Dist(lon1, lat1, lon2, lat2): #WGS84 transfer coordinate system to dista
     distance = R * c * 1000
     return distance
 
+def getDegree(latA, lonA, latB, lonB):
+    """
+    Args:
+        point p1(latA, lonA)
+        point p2(latB, lonB)
+    Returns:
+        bearing between the two GPS points,
+        default: the basis of heading direction is north
+    """
+    radLatA = math.radians(latA)
+    radLonA = math.radians(lonA)
+    radLatB = math.radians(latB)
+    radLonB = math.radians(lonB)
+    dLon = radLonB - radLonA
+    y = math.sin(dLon) * math.cos(radLatB)
+    x = math.cos(radLatA) * math.sin(radLatB) - math.sin(radLatA) * math.cos(radLatB) * math.cos(dLon)
+    brng = np.degrees(math.atan2(y, x))
+    brng = (brng + 360) % 360
+    # brng = 360 - brng
+    return brng
+    
+
 
 def MatchTMC2GMNSNetwork(link_tmc,link_base):
     link_tmc = pd.read_csv('link_tmc.csv')
     link_base = pd.read_csv('link.csv', low_memory=False)
-    link_base = link_base[link_base['link_type_name'].isin(['motorway','trunk','primary','secondary'])]
+    # link_base = link_base[link_base['link_type_name'].isin(['motorway','trunk','primary','secondary'])]
+    link_base = link_base[link_base['link_type_name'].isin(['motorway','trunk'])]
     link_base = link_base.reset_index()
     link_base = link_base.drop(['index'], 1)
     matching_tmc2gmns_dict = {}
@@ -256,8 +282,18 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
             lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
         center_tmc_lon = np.mean(lon_tmc_list)
         center_tmc_lat = np.mean(lat_tmc_list)
+        tmc_lon_1 = lon_tmc_list[0]
+        tmc_lon_2 = lon_tmc_list[-1]
+        tmc_lat_1 = lat_tmc_list[0]
+        tmc_lat_2 = lat_tmc_list[-1]
+        if getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)>180:
+            angle_tmc = getDegree(tmc_lat_2,tmc_lon_2,tmc_lat_1,tmc_lon_1)
+        else:
+            angle_tmc = getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)
+
 
         distance_list = []
+        angle_list = []
         for i in range(len(link_base)):
             lon_list = []
             lat_list = [] 
@@ -265,10 +301,29 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
             for link_geometry in link_geometry_list:
                 lon_list.append(float(link_geometry.split(" ")[0]))
                 lat_list.append(float(link_geometry.split(" ")[1]))
+            '''distance'''
             center_lon = np.mean(lon_list)
             center_lat = np.mean(lat_list)
             distance_list.append(LLs2Dist(center_lon, center_lat, center_tmc_lon, center_tmc_lat))
-        nearest_index = distance_list.index(min(distance_list))
+            '''angle '''
+            base_lon_1 = lon_list[0]
+            base_lon_2 = lon_list[-1]
+            base_lat_1 = lat_list[0]
+            base_lat_2 = lat_list[-1]
+            if getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)>180:
+                angle_base = getDegree(base_lat_2,base_lon_2,base_lat_1,base_lon_1)
+            else:
+                angle_base = getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)
+            
+            if abs(angle_tmc - angle_base) >= 90:
+                relative_angle = 180 - abs(angle_tmc - angle_base)
+            else:
+                relative_angle = abs(angle_tmc - angle_base)
+            angle_list.append(relative_angle)
+
+        small_angle_list = [i for i, value in enumerate(angle_list) if value < 20]
+        df_distance = pd.DataFrame({'distance':distance_list})
+        nearest_index = df_distance.loc[small_angle_list].idxmin().values[0]
 
         matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc.loc[j]['name'],\
                                     'link_id_tmc':link_tmc.loc[[j]].index.values[0],\
@@ -334,6 +389,7 @@ def ConvertMeasurementBasedOnMatching(link_base,matching_tmc2gmns,measurement_tm
                                                 'to_node_id': link_base_selected['to_node_id'].values[0],\
                                                 'lanes': link_base_selected['lanes'].values[0], \
                                                 'length': link_base_selected['length'].values[0], \
+                                                'link_type_name': link_base_selected['link_type_name'].values[0], \
                                                 'time_period': measurement_tmc_selected['time_period'][j],\
                                                 'date': measurement_tmc_selected['date'][j],\
                                                 'geometry': link_base_selected['geometry'].values[0],\
@@ -349,6 +405,7 @@ def ConvertMeasurementBasedOnMatching(link_base,matching_tmc2gmns,measurement_tm
                                                 'to_node_id': link_base_selected['to_node_id'].values[0],\
                                                 'lanes': link_base_selected['lanes'].values[0], \
                                                 'length': link_base_selected['length'].values[0], \
+                                                'link_type_name': link_base_selected['link_type_name'].values[0], \
                                                 'time_period':None,\
                                                 'date': None,\
                                                 'geometry': link_base_selected['geometry'].values[0],\

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import time
 import os.path
+from shapely.geometry import MultiLineString
 
 
 def TMCIdentification2GMNSNodeLinkFiles(TMC_file):
@@ -269,90 +270,126 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
     link_base = link_base[link_base['link_type_name'].isin(['motorway','trunk'])]
     link_base = link_base.reset_index()
     link_base = link_base.drop(['index'], 1)
-    matching_tmc2gmns_dict = {}
-    k = 0
-    p = 1
 
+    multiline_string_tmc_list = []
+    multiline_string_tmc_list_sub = []
     for j in link_tmc.index:
-        lon_tmc_list = []
-        lat_tmc_list = []
         link_tmc_geometry_list = link_tmc.loc[j,'geometry'][12:-1].split(",")
         for link_tmc_geometry in link_tmc_geometry_list:
-            lon_tmc_list.append(float(link_tmc_geometry.split(" ")[0]))
-            lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
-        center_tmc_lon = np.mean(lon_tmc_list)
-        center_tmc_lat = np.mean(lat_tmc_list)
-        tmc_lon_1 = lon_tmc_list[0]
-        tmc_lon_2 = lon_tmc_list[-1]
-        tmc_lat_1 = lat_tmc_list[0]
-        tmc_lat_2 = lat_tmc_list[-1]
-        if getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)>180:
-            angle_tmc = getDegree(tmc_lat_2,tmc_lon_2,tmc_lat_1,tmc_lon_1)
-        else:
-            angle_tmc = getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)
+            multiline_string_tmc_list_sub.append((float(link_tmc_geometry.split(" ")[0]),float(link_tmc_geometry.split(" ")[1])))
+        multiline_string_tmc_list_sub = tuple(multiline_string_tmc_list_sub)
+        multiline_string_tmc_list.append(multiline_string_tmc_list_sub)
+        multiline_string_tmc_list_sub = []
 
+    multiline_string_base_list = []
+    multiline_string_base_list_sub = []
+    for j in link_base.index:
+        link_base_geometry_list = link_base.loc[j,'geometry'][12:-1].split(", ")
+        for link_base_geometry in link_base_geometry_list:
+            multiline_string_base_list_sub.append((float(link_base_geometry.split(" ")[0]),float(link_base_geometry.split(" ")[1])))
+        multiline_string_base_list_sub = tuple(multiline_string_base_list_sub)
+        multiline_string_base_list.append(multiline_string_base_list_sub)
+        multiline_string_base_list_sub = []
 
-        distance_list = []
-        angle_list = []
-        for i in range(len(link_base)):
-            lon_list = []
-            lat_list = [] 
-            link_geometry_list = link_base.loc[i,'geometry'][12:-1].split(", ")
-            for link_geometry in link_geometry_list:
-                lon_list.append(float(link_geometry.split(" ")[0]))
-                lat_list.append(float(link_geometry.split(" ")[1]))
-            '''distance'''
-            center_lon = np.mean(lon_list)
-            center_lat = np.mean(lat_list)
-            distance_list.append(LLs2Dist(center_lon, center_lat, center_tmc_lon, center_tmc_lat))
-            '''angle '''
-            base_lon_1 = lon_list[0]
-            base_lon_2 = lon_list[-1]
-            base_lat_1 = lat_list[0]
-            base_lat_2 = lat_list[-1]
-            if getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)>180:
-                angle_base = getDegree(base_lat_2,base_lon_2,base_lat_1,base_lon_1)
+    from shapely.geometry import MultiLineString
+
+    line_tmc = MultiLineString(multiline_string_tmc_list)
+    line_base = MultiLineString(multiline_string_base_list) 
+    #bbox = left,bottom,right,top = min Longitude , min Latitude , max Longitude , max Latitude 
+
+    if (line_tmc.bounds[0] > line_base.bounds[0]) & (line_tmc.bounds[1] > line_base.bounds[1]) \
+        & (line_tmc.bounds[2] < line_base.bounds[2]) & (line_tmc.bounds[3] < line_base.bounds[3]):
+        matching_tmc2gmns_dict = {}
+        k = 0
+        p = 1
+
+        for j in link_tmc.index:
+            lon_tmc_list = []
+            lat_tmc_list = []
+            link_tmc_geometry_list = link_tmc.loc[j,'geometry'][12:-1].split(",")
+            for link_tmc_geometry in link_tmc_geometry_list:
+                lon_tmc_list.append(float(link_tmc_geometry.split(" ")[0]))
+                lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
+            center_tmc_lon = np.mean(lon_tmc_list)
+            center_tmc_lat = np.mean(lat_tmc_list)
+            tmc_lon_1 = lon_tmc_list[0]
+            tmc_lon_2 = lon_tmc_list[-1]
+            tmc_lat_1 = lat_tmc_list[0]
+            tmc_lat_2 = lat_tmc_list[-1]
+            if getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)>180:
+                angle_tmc = getDegree(tmc_lat_2,tmc_lon_2,tmc_lat_1,tmc_lon_1)
             else:
-                angle_base = getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)
+                angle_tmc = getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)
+
+
+            distance_list = []
+            angle_list = []
+            for i in range(len(link_base)):
+                lon_list = []
+                lat_list = [] 
+                link_geometry_list = link_base.loc[i,'geometry'][12:-1].split(", ")
+                for link_geometry in link_geometry_list:
+                    lon_list.append(float(link_geometry.split(" ")[0]))
+                    lat_list.append(float(link_geometry.split(" ")[1]))
+                '''distance'''
+                center_lon = np.mean(lon_list)
+                center_lat = np.mean(lat_list)
+                distance_list.append(LLs2Dist(center_lon, center_lat, center_tmc_lon, center_tmc_lat))
+                '''angle '''
+                base_lon_1 = lon_list[0]
+                base_lon_2 = lon_list[-1]
+                base_lat_1 = lat_list[0]
+                base_lat_2 = lat_list[-1]
+                if getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)>180:
+                    angle_base = getDegree(base_lat_2,base_lon_2,base_lat_1,base_lon_1)
+                else:
+                    angle_base = getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)
+                
+                if abs(angle_tmc - angle_base) >= 90:
+                    relative_angle = 180 - abs(angle_tmc - angle_base)
+                else:
+                    relative_angle = abs(angle_tmc - angle_base)
+                angle_list.append(relative_angle)
+
+            small_angle_list = [i for i, value in enumerate(angle_list) if value < 45]
+            df_distance = pd.DataFrame({'distance':distance_list})
             
-            if abs(angle_tmc - angle_base) >= 90:
-                relative_angle = 180 - abs(angle_tmc - angle_base)
-            else:
-                relative_angle = abs(angle_tmc - angle_base)
-            angle_list.append(relative_angle)
+            nearest_index = df_distance.loc[small_angle_list].idxmin().values[0]
 
-        small_angle_list = [i for i, value in enumerate(angle_list) if value < 20]
-        df_distance = pd.DataFrame({'distance':distance_list})
-        nearest_index = df_distance.loc[small_angle_list].idxmin().values[0]
+            matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc.loc[j]['name'],\
+                                        'corridor_id_tmc':link_tmc.loc[j]['corridor_id'],\
+                                        'link_id_tmc':link_tmc.loc[[j]].index.values[0],\
+                                        'from_node_id_tmc':link_tmc.loc[j]['from_node_id'],\
+                                        'to_node_id_tmc':link_tmc.loc[j]['to_node_id'],\
+                                        'category_id_tmc':link_tmc.index.get_loc(j)+1,\
+                                        'geometry_tmc':link_tmc.loc[j]['geometry'],\
+                                        'name_base':link_base['name'][nearest_index],\
+                                        'link_id_base':link_base['link_id'][nearest_index],\
+                                        'from_node_id_base':link_base['from_node_id'][nearest_index],\
+                                        'to_node_id_base':link_base['to_node_id'][nearest_index],\
+                                        'category_id_base':link_tmc.index.get_loc(j)+1,\
+                                        'geometry_base':link_base['geometry'][nearest_index],\
+                                        'distance':min(distance_list),\
+                                        'geometry_tmc_base':'MULTILINESTRING ('+ link_tmc.loc[j]['geometry'][11:] + \
+                                                            ', ' + link_base['geometry'][nearest_index][11:]+')'}
+            k += 1
 
-        matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc.loc[j]['name'],\
-                                'corridor_id_tmc':link_tmc.loc[j]['corridor_id'],\
-                                'link_id_tmc':link_tmc.loc[[j]].index.values[0],\
-                                'from_node_id_tmc':link_tmc.loc[j]['from_node_id'],\
-                                'to_node_id_tmc':link_tmc.loc[j]['to_node_id'],\
-                                'category_id_tmc':link_tmc.index.get_loc(j)+1,\
-                                'geometry_tmc':link_tmc.loc[j]['geometry'],\
-                                'name_base':link_base['name'][nearest_index],\
-                                'link_id_base':link_base['link_id'][nearest_index],\
-                                'from_node_id_base':link_base['from_node_id'][nearest_index],\
-                                'to_node_id_base':link_base['to_node_id'][nearest_index],\
-                                'category_id_base':link_tmc.index.get_loc(j)+1,\
-                                'geometry_base':link_base['geometry'][nearest_index],\
-                                'distance':min(distance_list),\
-                                'geometry_tmc_base':'MULTILINESTRING ('+ link_tmc.loc[j]['geometry'][11:] + \
-                                                    ', ' + link_base['geometry'][nearest_index][11:]+')'}
-        k += 1
-
-        
-        if link_tmc.index.get_loc(j) > p/10 * len(link_tmc): 
-            print(str(p*10)+"%"+' matching completed!')
-            p = p + 1
             
+            if link_tmc.index.get_loc(j) > p/10 * len(link_tmc): 
+                print(str(p*10)+"%"+' matching completed!')
+                p = p + 1
+                
 
-    matching_tmc2gmns = pd.DataFrame(matching_tmc2gmns_dict).transpose()
+        matching_tmc2gmns = pd.DataFrame(matching_tmc2gmns_dict).transpose()
 
-    matching_tmc2gmns.to_csv('matching_tmc2gmns.csv',index = False)
-    print('matching_tmc2gmns.csv generated!')
+        matching_tmc2gmns.to_csv('matching_tmc2gmns.csv',index = False)
+        print('matching_tmc2gmns.csv generated!')
+    else:
+        print('base map cannot cover all TMC links, please use larger base map')
+
+
+
+    
 
 
 def ConvertMeasurementBasedOnMatching(link_base,matching_tmc2gmns,measurement_tmc):

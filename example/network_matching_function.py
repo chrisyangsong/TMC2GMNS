@@ -326,18 +326,21 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
         nearest_index = df_distance.loc[small_angle_list].idxmin().values[0]
 
         matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc.loc[j]['name'],\
-                                    'link_id_tmc':link_tmc.loc[[j]].index.values[0],\
-                                    'from_node_id_tmc':link_tmc.loc[j]['from_node_id'],\
-                                    'to_node_id_tmc':link_tmc.loc[j]['to_node_id'],\
-                                    'category_id_tmc':link_tmc.index.get_loc(j)+1,\
-                                    'geometry_tmc':link_tmc.loc[j]['geometry'],\
-                                    'name_base':link_base['name'][nearest_index],\
-                                    'link_id_base':link_base['link_id'][nearest_index],\
-                                    'from_node_id_base':link_base['from_node_id'][nearest_index],\
-                                    'to_node_id_base':link_base['to_node_id'][nearest_index],\
-                                    'category_id_base':link_tmc.index.get_loc(j)+1,\
-                                    'geometry_base':link_base['geometry'][nearest_index],\
-                                    'distance':min(distance_list)}
+                                'corridor_id_tmc':link_tmc.loc[j]['corridor_id'],\
+                                'link_id_tmc':link_tmc.loc[[j]].index.values[0],\
+                                'from_node_id_tmc':link_tmc.loc[j]['from_node_id'],\
+                                'to_node_id_tmc':link_tmc.loc[j]['to_node_id'],\
+                                'category_id_tmc':link_tmc.index.get_loc(j)+1,\
+                                'geometry_tmc':link_tmc.loc[j]['geometry'],\
+                                'name_base':link_base['name'][nearest_index],\
+                                'link_id_base':link_base['link_id'][nearest_index],\
+                                'from_node_id_base':link_base['from_node_id'][nearest_index],\
+                                'to_node_id_base':link_base['to_node_id'][nearest_index],\
+                                'category_id_base':link_tmc.index.get_loc(j)+1,\
+                                'geometry_base':link_base['geometry'][nearest_index],\
+                                'distance':min(distance_list),\
+                                'geometry_tmc_base':'MULTILINESTRING ('+ link_tmc.loc[j]['geometry'][11:] + \
+                                                    ', ' + link_base['geometry'][nearest_index][11:]+')'}
         k += 1
 
         

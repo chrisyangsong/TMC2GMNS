@@ -5,7 +5,11 @@ import numpy as np
 import pandas as pd
 import time
 import os.path
+import shapely.geometry as geom
+import geopandas as gpd
 from shapely.geometry import MultiLineString
+from shapely.geometry import Point
+
 
 
 def TMCIdentification2GMNSNodeLinkFiles(TMC_file):
@@ -321,20 +325,23 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
             else:
                 angle_tmc = getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)
 
+            start_point_tmc = Point(tuple([float(link_tmc_geometry_list[0].split(" ")[0]),float(link_tmc_geometry_list[0].split(" ")[1])]))
 
             distance_list = []
             angle_list = []
             for i in range(len(link_base)):
                 lon_list = []
                 lat_list = [] 
+                point_base_list = []
                 link_geometry_list = link_base.loc[i,'geometry'][12:-1].split(", ")
                 for link_geometry in link_geometry_list:
                     lon_list.append(float(link_geometry.split(" ")[0]))
                     lat_list.append(float(link_geometry.split(" ")[1]))
+                    point_base_list.append(tuple([float(link_geometry.split(" ")[0]),float(link_geometry.split(" ")[1])]))
+                base_line = geom.LineString(tuple(point_base_list))
                 '''distance'''
-                center_lon = np.mean(lon_list)
-                center_lat = np.mean(lat_list)
-                distance_list.append(LLs2Dist(center_lon, center_lat, center_tmc_lon, center_tmc_lat))
+                distance_list.append(start_point_tmc.distance(base_line))
+                
                 '''angle '''
                 base_lon_1 = lon_list[0]
                 base_lon_2 = lon_list[-1]
@@ -345,6 +352,7 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
                 else:
                     angle_base = getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)
                 
+
                 if abs(angle_tmc - angle_base) >= 90:
                     relative_angle = 180 - abs(angle_tmc - angle_base)
                 else:

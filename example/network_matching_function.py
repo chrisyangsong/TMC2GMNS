@@ -185,7 +185,7 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
     print('link_tmc.csv (' + str(len(link_tmc)) + ' links' + ') generated!')
 
 
-def volume_speed_func(speed,ffs=66,critical_density=35,mm=6): # fundamental diagram  (volume_delay fuction) 
+def volume_speed_func(speed,ffs=69,critical_density=37.5,mm=4): # fundamental diagram  (volume_delay fuction) 
     if speed > ffs:
         speed = ffs
     kernal=np.power(np.power(ffs/speed,mm),0.5)

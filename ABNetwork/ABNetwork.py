@@ -106,7 +106,7 @@ def MatchTMC2BASENetwork(link_tmc,link_base,link_measurement_TMC):
             df_distance = pd.DataFrame({'index':small_angle_list,'distance':distance_list})
             nearest_index = int(df_distance.loc[df_distance['distance'].idxmin()]['index'])
 
-            matching_tmc2base_dict[k] = {'name_tmc':link_TMC.loc[i]['link_id'],\
+            matching_tmc2base_dict[k] = {'link_id_tmc':link_TMC.loc[i]['link_id'],\
                                             'from_node_id_tmc':link_TMC.loc[i]['from_node_id'],\
                                             'to_node_id_tmc':link_TMC.loc[i]['to_node_id'],\
                                             'bearing_angle_tmc':link_TMC.loc[i]['bearing_angle'],\
@@ -137,3 +137,65 @@ def MatchTMC2BASENetwork(link_tmc,link_base,link_measurement_TMC):
     matching_tmc2base.to_csv('matching_tmc2base.csv',index = False)
     print('matching_tmc2base.csv generated!')
  
+
+    '''build measurement_base.csv''' 
+    matching_tmc2base_dict = {}
+    gp = matching_tmc2base.groupby('link_id_base')
+    for key, form in gp:
+        matching_tmc2base_dict[key] = {
+            'link_id_tmc':form['link_id_tmc'].tolist()
+            }
+    sample_time_period = link_measurement_TMC['time_period'][0]
+    time_duration = int(sample_time_period[5:7])*60+int(sample_time_period[7:])-int(sample_time_period[0:2])*60-int(sample_time_period[2:4])
+    k=0
+    p=1
+    i=0
+    measurement_base_dict = {}
+    for key, value in matching_tmc2base_dict.items():
+        i += 1
+        try:
+            link_base_selected = link_base[link_base['link_id'] == key]
+            measurement_tmc_selected = link_measurement_TMC[link_measurement_TMC['link_id'].isin(value['link_id_tmc'])]
+            gp_measurement_tmc_selected = measurement_tmc_selected.groupby(['time_period','Date'])
+            for key_measurement_tmc_selected, form_measurement_tmc_selected in gp_measurement_tmc_selected:
+                measurement_base_dict[k] = {'link_id': link_base_selected['link_id'].values[0],\
+                                                'osm_way_id':link_base_selected['osm_way_id'].values[0],\
+                                                'from_node_id': link_base_selected['from_node_id'].values[0],\
+                                                'to_node_id': link_base_selected['to_node_id'].values[0],\
+                                                'lanes': link_base_selected['lanes'].values[0], \
+                                                'length': link_base_selected['length'].values[0], \
+                                                'link_type_name': link_base_selected['link_type_name'].values[0], \
+                                                'time_period': key_measurement_tmc_selected[0],\
+                                                'date': key_measurement_tmc_selected[1],\
+                                                'geometry': link_base_selected['geometry'].values[0],\
+                                                'volume': round(form_measurement_tmc_selected['volume'].mean()),\
+                                                'speed': round(form_measurement_tmc_selected['speed'].mean()),\
+                                                'density': round(form_measurement_tmc_selected['volume'].mean()*60/time_duration/form_measurement_tmc_selected['speed'].mean()),\
+                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])} 
+
+                k += 1
+        except:
+            measurement_base_dict[k] = {'link_id': link_base_selected['link_id'].values[0],\
+                                                'osm_way_id':link_base_selected['osm_way_id'].values[0],\
+                                                'from_node_id': link_base_selected['from_node_id'].values[0],\
+                                                'to_node_id': link_base_selected['to_node_id'].values[0],\
+                                                'lanes': link_base_selected['lanes'].values[0], \
+                                                'length': link_base_selected['length'].values[0], \
+                                                'link_type_name': link_base_selected['link_type_name'].values[0], \
+                                                'time_period':None,\
+                                                'date': None,\
+                                                'geometry': link_base_selected['geometry'].values[0],\
+                                                'volume': None,\
+                                                'speed': None,\
+                                                'density': None,\
+                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])}
+
+            k += 1
+        
+        if i+1 > p/10 * len(matching_tmc2base_dict): 
+            print(str(p*10)+"%"+' measurement_base completed!')
+            p = p + 1
+
+    measurement_base = pd.DataFrame(measurement_base_dict).transpose()
+    measurement_base.to_csv('measurement_base.csv',index = False)
+    print('measurement_base.csv generated!')

@@ -96,9 +96,9 @@ def MatchTMC2BASENetwork(link_tmc,link_base,link_measurement_TMC):
     for i in link_TMC.index:
         angle_list = list(abs(link_TMC.loc[i,'bearing_angle']-list(link_base['bearing_angle'])))
         small_angle_list = [i for i, value in enumerate(angle_list) if value < 45]
-        for dividing_rate in range(1,11):
-            start_point_tmc = loads(link_TMC['geometry'][i]).interpolate((dividing_rate-1)/10, normalized=True)
-            end_point_tmc = loads(link_TMC['geometry'][i]).interpolate(dividing_rate/10, normalized=True)
+        for dividing_rate in range(1,6):
+            start_point_tmc = loads(link_TMC['geometry'][i]).interpolate((dividing_rate-1)/5, normalized=True)
+            end_point_tmc = loads(link_TMC['geometry'][i]).interpolate(dividing_rate/5, normalized=True)
             distance_list = []
             
             for j in small_angle_list:
@@ -111,7 +111,8 @@ def MatchTMC2BASENetwork(link_tmc,link_base,link_measurement_TMC):
                                             'to_node_id_tmc':link_TMC.loc[i]['to_node_id'],\
                                             'bearing_angle_tmc':link_TMC.loc[i]['bearing_angle'],\
                                             'geometry_tmc':link_TMC.loc[i]['geometry'],\
-                                            'name_base':link_base['name'][nearest_index],\
+                                            'name_base':None,\
+                                            # 'name_base':link_base['name'][nearest_index],\
                                             'link_id_base':link_base['link_id'][nearest_index],\
                                             'from_node_id_base':link_base['from_node_id'][nearest_index],\
                                             'to_node_id_base':link_base['to_node_id'][nearest_index],\
@@ -120,6 +121,7 @@ def MatchTMC2BASENetwork(link_tmc,link_base,link_measurement_TMC):
                                             'geometry_tmc_base':'MULTILINESTRING ('+ link_TMC.loc[i]['geometry'][11:] + \
                                                                 ', ' + link_base['geometry'][nearest_index][11:]+')'}
             k += 1
+            # print(k)
 
             
         if link_TMC.index.get_loc(i) > p/10 * len(link_TMC): 
@@ -159,36 +161,38 @@ def MatchTMC2BASENetwork(link_tmc,link_base,link_measurement_TMC):
             gp_measurement_tmc_selected = measurement_tmc_selected.groupby(['time_period','Date'])
             for key_measurement_tmc_selected, form_measurement_tmc_selected in gp_measurement_tmc_selected:
                 measurement_base_dict[k] = {'link_id': link_base_selected['link_id'].values[0],\
-                                                'osm_way_id':link_base_selected['osm_way_id'].values[0],\
+                                                # 'osm_way_id':link_base_selected['osm_way_id'].values[0],\
                                                 'from_node_id': link_base_selected['from_node_id'].values[0],\
                                                 'to_node_id': link_base_selected['to_node_id'].values[0],\
                                                 'lanes': link_base_selected['lanes'].values[0], \
                                                 'length': link_base_selected['length'].values[0], \
-                                                'link_type_name': link_base_selected['link_type_name'].values[0], \
+                                                # 'link_type_name': link_base_selected['link_type_name'].values[0], \
                                                 'time_period': key_measurement_tmc_selected[0],\
                                                 'date': key_measurement_tmc_selected[1],\
                                                 'geometry': link_base_selected['geometry'].values[0],\
                                                 'volume': round(form_measurement_tmc_selected['volume'].mean()),\
                                                 'speed': round(form_measurement_tmc_selected['speed'].mean()),\
                                                 'density': round(form_measurement_tmc_selected['volume'].mean()*60/time_duration/form_measurement_tmc_selected['speed'].mean()),\
-                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])} 
+                                                # 'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])\
+                                                    } 
 
                 k += 1
         except:
             measurement_base_dict[k] = {'link_id': link_base_selected['link_id'].values[0],\
-                                                'osm_way_id':link_base_selected['osm_way_id'].values[0],\
+                                                # 'osm_way_id':link_base_selected['osm_way_id'].values[0],\
                                                 'from_node_id': link_base_selected['from_node_id'].values[0],\
                                                 'to_node_id': link_base_selected['to_node_id'].values[0],\
                                                 'lanes': link_base_selected['lanes'].values[0], \
                                                 'length': link_base_selected['length'].values[0], \
-                                                'link_type_name': link_base_selected['link_type_name'].values[0], \
+                                                # 'link_type_name': link_base_selected['link_type_name'].values[0], \
                                                 'time_period':None,\
                                                 'date': None,\
                                                 'geometry': link_base_selected['geometry'].values[0],\
                                                 'volume': None,\
                                                 'speed': None,\
                                                 'density': None,\
-                                                'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])}
+                                                # 'ip_address': 'www.openstreetmap.org/?way=' + str(link_base_selected['osm_way_id'].values[0])\
+                                                    }
 
             k += 1
         

@@ -61,9 +61,17 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
     if len(in_bbox_index_list) < origin_tmc_num:
         print('base map cannot cover all TMC nodes,' + str(origin_tmc_num-len(in_bbox_index_list)) + 'tmc nodes are out of boundary box, please use larger base map')
 
+    form_tmc = pd.DataFrame([])
+    gp = tmc.groupby(['road','direction'])
+    for key, form in gp:
+        form['end_latitude'][:-1] = form['start_latitude'][1:].tolist()
+        form['end_longitude'][:-1] = form['start_longitude'][1:].tolist()
+        form_tmc = pd.concat([form_tmc, form], axis=0)
+    form_tmc = form_tmc.reset_index()
+    form_tmc = form_tmc.drop(['index'], 1)
+    tmc = form_tmc
 
-    
-    
+
     '''build node.csv'''
     print('converting tmc data into gmns format...')
     p=1
@@ -78,8 +86,9 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
     node_tmc['zone_id'] = None
     node_tmc['geometry'] = None
 
-    for i in range(0,len(tmc)-1):
-        if tmc.loc[i+1,'road_order'] > tmc.loc[i,'road_order']:
+    gp = tmc.groupby(['road','direction'])
+    for key, form in gp:
+        for i in form.index:
             node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc'],\
                                         'x_coord': tmc.loc[i,'start_longitude'], \
                                         'y_coord': tmc.loc[i,'start_latitude'],\
@@ -88,16 +97,7 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
                                         'ctrl_type': None,\
                                         'zone_id': None,\
                                         'geometry': "POINT (" + tmc.loc[i,'start_longitude'].astype(str) + " " + tmc.loc[i,'start_latitude'].astype(str) +")"}, ignore_index=True)
-        else:
-            node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc'],\
-                                        'x_coord': tmc.loc[i,'start_longitude'], \
-                                        'y_coord': tmc.loc[i,'start_latitude'],\
-                                        'z_coord': None,\
-                                        'node_type': 'tmc_start',\
-                                        'ctrl_type': None,\
-                                        'zone_id': None,\
-                                        'geometry': "POINT (" + tmc.loc[i,'start_longitude'].astype(str) + " " + tmc.loc[i,'start_latitude'].astype(str) +")"}, ignore_index=True)
-            node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc']+'END',\
+        node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc']+'END',\
                                         'x_coord': tmc.loc[i,'end_longitude'], \
                                         'y_coord': tmc.loc[i,'end_latitude'],\
                                         'z_coord': None,\
@@ -106,27 +106,57 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
                                         'zone_id': None,\
                                         'geometry': "POINT (" + tmc.loc[i,'end_longitude'].astype(str) + " " + tmc.loc[i,'end_latitude'].astype(str) +")"}, ignore_index=True)
 
-        if i > p/10 * len(tmc): 
-            print(str(p*10)+"%"+' nodes completed!')
-            p = p + 1
 
-    node_tmc = node_tmc.append({'name': tmc.loc[i+1,'tmc'],\
-                                        'x_coord': tmc.loc[i+1,'start_longitude'], \
-                                        'y_coord': tmc.loc[i+1,'start_latitude'],\
-                                        'z_coord': None,\
-                                        'node_type': 'tmc_start',\
-                                        'ctrl_type': None,\
-                                        'zone_id': None,\
-                                        'geometry': "POINT (" + tmc.loc[i+1,'start_longitude'].astype(str) + " " + tmc.loc[i+1,'start_latitude'].astype(str) +")"}, ignore_index=True)
 
-    node_tmc = node_tmc.append({'name': tmc.loc[i+1,'tmc']+'END',\
-                                        'x_coord': tmc.loc[i+1,'end_longitude'], \
-                                        'y_coord': tmc.loc[i+1,'end_latitude'],\
-                                        'z_coord': None,\
-                                        'node_type': 'tmc_end',\
-                                        'ctrl_type': None,\
-                                        'zone_id': None,\
-                                        'geometry': "POINT (" + tmc.loc[i+1,'end_longitude'].astype(str) + " " + tmc.loc[i+1,'end_latitude'].astype(str) +")"}, ignore_index=True)
+    # for i in range(0,len(tmc)-1):
+    #     if tmc.loc[i+1,'road_order'] > tmc.loc[i,'road_order']:
+    #         node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc'],\
+    #                                     'x_coord': tmc.loc[i,'start_longitude'], \
+    #                                     'y_coord': tmc.loc[i,'start_latitude'],\
+    #                                     'z_coord': None,\
+    #                                     'node_type': 'tmc_start',\
+    #                                     'ctrl_type': None,\
+    #                                     'zone_id': None,\
+    #                                     'geometry': "POINT (" + tmc.loc[i,'start_longitude'].astype(str) + " " + tmc.loc[i,'start_latitude'].astype(str) +")"}, ignore_index=True)
+    #     else:
+    #         node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc'],\
+    #                                     'x_coord': tmc.loc[i,'start_longitude'], \
+    #                                     'y_coord': tmc.loc[i,'start_latitude'],\
+    #                                     'z_coord': None,\
+    #                                     'node_type': 'tmc_start',\
+    #                                     'ctrl_type': None,\
+    #                                     'zone_id': None,\
+    #                                     'geometry': "POINT (" + tmc.loc[i,'start_longitude'].astype(str) + " " + tmc.loc[i,'start_latitude'].astype(str) +")"}, ignore_index=True)
+    #         node_tmc = node_tmc.append({'name': tmc.loc[i,'tmc']+'END',\
+    #                                     'x_coord': tmc.loc[i,'end_longitude'], \
+    #                                     'y_coord': tmc.loc[i,'end_latitude'],\
+    #                                     'z_coord': None,\
+    #                                     'node_type': 'tmc_end',\
+    #                                     'ctrl_type': None,\
+    #                                     'zone_id': None,\
+    #                                     'geometry': "POINT (" + tmc.loc[i,'end_longitude'].astype(str) + " " + tmc.loc[i,'end_latitude'].astype(str) +")"}, ignore_index=True)
+
+    #     if i > p/10 * len(tmc): 
+    #         print(str(p*10)+"%"+' nodes completed!')
+    #         p = p + 1
+
+    # node_tmc = node_tmc.append({'name': tmc.loc[i+1,'tmc'],\
+    #                                     'x_coord': tmc.loc[i+1,'start_longitude'], \
+    #                                     'y_coord': tmc.loc[i+1,'start_latitude'],\
+    #                                     'z_coord': None,\
+    #                                     'node_type': 'tmc_start',\
+    #                                     'ctrl_type': None,\
+    #                                     'zone_id': None,\
+    #                                     'geometry': "POINT (" + tmc.loc[i+1,'start_longitude'].astype(str) + " " + tmc.loc[i+1,'start_latitude'].astype(str) +")"}, ignore_index=True)
+
+    # node_tmc = node_tmc.append({'name': tmc.loc[i+1,'tmc']+'END',\
+                                        # 'x_coord': tmc.loc[i+1,'end_longitude'], \
+                                        # 'y_coord': tmc.loc[i+1,'end_latitude'],\
+                                        # 'z_coord': None,\
+                                        # 'node_type': 'tmc_end',\
+                                        # 'ctrl_type': None,\
+                                        # 'zone_id': None,\
+                                        # 'geometry': "POINT (" + tmc.loc[i+1,'end_longitude'].astype(str) + " " + tmc.loc[i+1,'end_latitude'].astype(str) +")"}, ignore_index=True)
 
     node_tmc.index.name = 'node_id'
 
@@ -159,8 +189,10 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
         link_tmc = link_tmc.append({'name': tmc.loc[i,'tmc'],\
                                     'corridor_id': tmc.loc[i,'road']+'_'+tmc.loc[i,'direction'],\
                                     'corridor_link_order' : tmc.loc[i,'road_order'],\
-                                    'from_node_id': node_tmc[(node_tmc['x_coord']==tmc.loc[i,'start_longitude']) & (node_tmc['y_coord']==tmc.loc[i,'start_latitude'])].index.values[0], \
-                                    'to_node_id': node_tmc[(node_tmc['x_coord']==tmc.loc[i,'end_longitude']) & (node_tmc['y_coord']==tmc.loc[i,'end_latitude'])].index.values[0],\
+                                    # 'from_node_id': node_tmc[(node_tmc['x_coord']==tmc.loc[i,'start_longitude']) & (node_tmc['y_coord']==tmc.loc[i,'start_latitude'])].index.values[0], \
+                                    # 'to_node_id': node_tmc[(node_tmc['x_coord']==tmc.loc[i,'end_longitude'])&(node_tmc['y_coord']==tmc.loc[i,'end_latitude'])].index.values[0],\
+                                    'from_node_id': node_tmc[(node_tmc['y_coord']==tmc.loc[i,'start_latitude'])].index.values[0], \
+                                    'to_node_id': node_tmc[(node_tmc['y_coord']==tmc.loc[i,'end_latitude'])].index.values[0],\
                                     'directed': 1,\
                                     'geometry_id': None,\
                                     'geometry': "LINESTRING (" + tmc.loc[i,'start_longitude'].astype(str) + " " + tmc.loc[i,'start_latitude'].astype(str) + "," +\
@@ -402,7 +434,7 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
                                         'to_node_id_tmc':link_tmc.loc[j]['to_node_id'],\
                                         'category_id_tmc':link_tmc.index.get_loc(j)+1,\
                                         'geometry_tmc':link_tmc.loc[j]['geometry'],\
-                                        'name_base':link_base['name'][nearest_index],\
+                                        # 'name_base':link_base['name'][nearest_index],\
                                         'link_id_base':link_base['link_id'][nearest_index],\
                                         'from_node_id_base':link_base['from_node_id'][nearest_index],\
                                         'to_node_id_base':link_base['to_node_id'][nearest_index],\
@@ -584,7 +616,7 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
                                             'to_node_id_tmc':link_tmc_sub.loc[j]['to_node_id'],\
                                             'category_id_tmc':link_tmc_sub.index.get_loc(j)+1,\
                                             'geometry_tmc':link_tmc_sub.loc[j]['geometry'],\
-                                            'name_base':link_base_sub.iloc[nearest_index]['name'],\
+                                            # 'name_base':link_base_sub.iloc[nearest_index]['name'],\
                                             'link_id_base':link_base_sub.iloc[nearest_index]['link_id'],\
                                             'from_node_id_base':link_base_sub.iloc[nearest_index]['from_node_id'],\
                                             'to_node_id_base':link_base_sub.iloc[nearest_index]['to_node_id'],\

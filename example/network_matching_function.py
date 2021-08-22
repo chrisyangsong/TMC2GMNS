@@ -196,7 +196,7 @@ def ConvertTMCReading2Measurement(Reading,link_tmc):
     link_tmc = pd.read_csv(link_tmc)
     ## reading by detid
     reading = pd.read_csv(Reading)
-    reading = reading.loc[0:5000]
+    # reading = reading.loc[0:5000]
     reading_dict = {}
     gp = reading.groupby('tmc_code')
     for key, form in gp:

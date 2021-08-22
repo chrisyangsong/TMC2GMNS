@@ -40,7 +40,7 @@ def TMCIdentification2GMNSNodeLinkFiles(TMC_file,link_base):#output:node_tmc,lin
     line_base = MultiLineString(multiline_string_base_list) 
 
     '''reading tmc'''
-    tmc = pd.read_csv('TMC_Identification.csv')
+    tmc = pd.read_csv(TMC_file)
     tmc = tmc.drop_duplicates(subset=['direction','road_order']).sort_values(by=['direction','road_order'])
     tmc = tmc.reset_index()
     tmc = tmc.drop(['index'], 1)

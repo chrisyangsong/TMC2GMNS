@@ -458,190 +458,190 @@ def MatchTMC2GMNSNetwork(link_tmc,link_base):
     matching_tmc2gmns_drop_duplicates = matching_tmc2gmns_drop_duplicates.drop(['index'], 1)
     matching_tmc2gmns = matching_tmc2gmns_drop_duplicates
 
-    # matching_tmc2gmns.to_csv('matching_tmc2gmns.csv',index = False)
-    # print('matching_tmc2gmns.csv generated!')
-
-    matching_name_base_counts = matching_tmc2gmns['name_base'].value_counts()
-    link_base = link_base[link_base['name'].isin(matching_name_base_counts[matching_name_base_counts>30].index)]
-    link_base = link_base.reset_index()
-    link_base = link_base.drop(['index'], 1)
-    # link_base.to_csv('link_base_small.csv',index = False)
-
-
-    ''' extract base route '''
-    link_base_iteration = link_base 
-    base_route_dict = {}
-    i = 0
-    while len(link_base_iteration)>0:
-        k = link_base_iteration.index[0]
-        base_route_index_list = []
-        base_route_list = []
-        base_route_index_list.append(k)
-        base_route_list.append(link_base.loc[k,'from_node_id'])
-        base_route_list.append(link_base.loc[k,'to_node_id'])
-        link_base_iteration = link_base_iteration.drop(k)
-
-        selected_link_base_row = link_base_iteration[link_base_iteration['from_node_id'] == base_route_list[-1]]
-        while len(selected_link_base_row) != 0:
-            base_route_list.append(selected_link_base_row['to_node_id'].values[0])
-            base_route_index_list.append(selected_link_base_row.index.values[0])
-            link_base_iteration = link_base_iteration.drop(selected_link_base_row.index.values[0])
-            selected_link_base_row = link_base_iteration[link_base_iteration['from_node_id'] == base_route_list[-1]]
-
-        selected_link_base_row = link_base_iteration[link_base_iteration['to_node_id'] == base_route_list[0]]
-        while len(selected_link_base_row) != 0:
-            base_route_list.insert(0,selected_link_base_row['from_node_id'].values[0])
-            base_route_index_list.insert(0,selected_link_base_row.index.values[0])
-            link_base_iteration = link_base_iteration.drop(selected_link_base_row.index.values[0])
-            selected_link_base_row = link_base_iteration[link_base_iteration['to_node_id'] == base_route_list[0]]
-
-        base_route_dict[i] = {
-            'base_route_list':base_route_list,
-            'base_route_index_list':base_route_index_list
-        }
-        i+=1
-
-
-    ''' extract tmc route'''
-    tmc_route_dict = {}
-    gp = matching_tmc2gmns.groupby('corridor_id_tmc')
-    for key, form in gp:
-        tmc_route_dict[key] = {
-            'from_node_id_base':set(form['from_node_id_base'].tolist()),
-            'tmc_index':list(form.index.values)
-            }
-
-
-    base_route_tmc_dict = {}
-    k=0
-    for i in range(len(base_route_dict)):
-        for key, value in tmc_route_dict.items():
-            base_route_tmc_dict[k] = {'base_route':i,
-            'corridor': key,
-            'tmc_index':value['tmc_index'],
-            'number': int(len(set(base_route_dict[i]['base_route_list']).intersection(value['from_node_id_base'])))}
-            k+=1
-
-    base_route_tmc = pd.DataFrame(base_route_tmc_dict).transpose()     
-
-    base_tmc_dict = {}
-    gp = base_route_tmc.groupby('base_route')
-    for key, form in gp:
-        base_tmc_dict[key] = {
-            'corridor':form.loc[pd.to_numeric(form['number']).idxmax()]['corridor']
-            }
-    base_tmc = pd.DataFrame(base_tmc_dict).transpose() 
-    tmc_base_dict = {}
-    gp = base_tmc.groupby('corridor')
-    for key, form in gp:
-        tmc_base_dict[key] = list(form.index.values)
-
-
-    '''second matching'''
-    matching_tmc2gmns_dict = {}
-    k = 0
-    p = 1
-    tmc_count = 0
-    for key, value in tmc_base_dict.items():
-        link_tmc_sub = link_tmc[link_tmc['corridor_id'] == key]
-        base_link_list_sub = []
-        for base_route_id in value:
-            base_link_list_sub += base_route_dict[base_route_id]['base_route_index_list']
-        link_base_sub = link_base.loc[base_link_list_sub]
-
-
-        for j in link_tmc_sub.index:
-            lon_tmc_list = []
-            lat_tmc_list = []
-            link_tmc_geometry_list = link_tmc_sub.loc[j,'geometry'][12:-1].split(",")
-            for link_tmc_geometry in link_tmc_geometry_list:
-                lon_tmc_list.append(float(link_tmc_geometry.split(" ")[0]))
-                lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
-            center_tmc_lon = np.mean(lon_tmc_list)
-            center_tmc_lat = np.mean(lat_tmc_list)
-            tmc_lon_1 = lon_tmc_list[0]
-            tmc_lon_2 = lon_tmc_list[-1]
-            tmc_lat_1 = lat_tmc_list[0]
-            tmc_lat_2 = lat_tmc_list[-1]
-            if getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)>180:
-                angle_tmc = getDegree(tmc_lat_2,tmc_lon_2,tmc_lat_1,tmc_lon_1)
-            else:
-                angle_tmc = getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)
-
-            for dividing_rate in range(1,51):
-                end_point_tmc = LineString([(tmc_lon_1, tmc_lat_1),  (tmc_lon_2, tmc_lat_2)]).interpolate(dividing_rate/50, normalized=True)
-                start_point_tmc = LineString([(tmc_lon_1, tmc_lat_1),  (tmc_lon_2, tmc_lat_2)]).interpolate((dividing_rate-1)/50, normalized=True)
-
-                distance_list = []
-                angle_list = []
-                for i in link_base_sub.index:
-                    lon_list = []
-                    lat_list = [] 
-                    point_base_list = []
-                    link_geometry_list = link_base_sub.loc[i,'geometry'][12:-1].split(", ")
-                    for link_geometry in link_geometry_list:
-                        lon_list.append(float(link_geometry.split(" ")[0]))
-                        lat_list.append(float(link_geometry.split(" ")[1]))
-                        point_base_list.append(tuple([float(link_geometry.split(" ")[0]),float(link_geometry.split(" ")[1])]))
-                    base_line = geom.LineString(tuple(point_base_list))
-                    '''distance'''
-                    distance_list.append(start_point_tmc.distance(base_line))
-                    
-                    '''angle '''
-                    base_lon_1 = lon_list[0]
-                    base_lon_2 = lon_list[-1]
-                    base_lat_1 = lat_list[0]
-                    base_lat_2 = lat_list[-1]
-                    if getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)>180:
-                        angle_base = getDegree(base_lat_2,base_lon_2,base_lat_1,base_lon_1)
-                    else:
-                        angle_base = getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)
-                    
-
-                    if abs(angle_tmc - angle_base) >= 90:
-                        relative_angle = 180 - abs(angle_tmc - angle_base)
-                    else:
-                        relative_angle = abs(angle_tmc - angle_base)
-                    angle_list.append(relative_angle)
-
-                small_angle_list = [i for i, value in enumerate(angle_list) if value < 45]
-                df_distance = pd.DataFrame({'distance':distance_list})
-                
-                nearest_index = df_distance.loc[small_angle_list].idxmin().values[0]
-
-                matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc_sub.loc[j]['name'],\
-                                            'corridor_id_tmc':link_tmc_sub.loc[j]['corridor_id'],\
-                                            'link_id_tmc':link_tmc_sub.loc[[j]].index.values[0],\
-                                            'from_node_id_tmc':link_tmc_sub.loc[j]['from_node_id'],\
-                                            'to_node_id_tmc':link_tmc_sub.loc[j]['to_node_id'],\
-                                            'category_id_tmc':link_tmc_sub.index.get_loc(j)+1,\
-                                            'geometry_tmc':link_tmc_sub.loc[j]['geometry'],\
-                                            # 'name_base':link_base_sub.iloc[nearest_index]['name'],\
-                                            'link_id_base':link_base_sub.iloc[nearest_index]['link_id'],\
-                                            'from_node_id_base':link_base_sub.iloc[nearest_index]['from_node_id'],\
-                                            'to_node_id_base':link_base_sub.iloc[nearest_index]['to_node_id'],\
-                                            'category_id_base':link_tmc_sub.index.get_loc(j)+1,\
-                                            'geometry_base':link_base_sub.iloc[nearest_index]['geometry'],\
-                                            'distance':min(distance_list),\
-                                            'geometry_tmc_base':'MULTILINESTRING ('+ link_tmc_sub.loc[j]['geometry'][11:] + \
-                                                                ', ' + link_base_sub.iloc[nearest_index]['geometry'][11:]+')'}
-                k += 1
-
-            tmc_count += 1
-            if tmc_count > p/10 * len(link_tmc): 
-                print(str(p*10)+"%"+' matching completed!')
-                p = p + 1
-            
-
-    matching_tmc2gmns = pd.DataFrame(matching_tmc2gmns_dict).transpose()
-    matching_tmc2gmns_drop_duplicates = matching_tmc2gmns.drop(columns=['distance']).drop_duplicates()
-    matching_tmc2gmns_drop_duplicates['distance'] = matching_tmc2gmns.loc[matching_tmc2gmns_drop_duplicates.index]['distance']
-    matching_tmc2gmns_drop_duplicates = matching_tmc2gmns_drop_duplicates.reset_index()
-    matching_tmc2gmns_drop_duplicates = matching_tmc2gmns_drop_duplicates.drop(['index'], 1)
-    matching_tmc2gmns = matching_tmc2gmns_drop_duplicates
-
     matching_tmc2gmns.to_csv('matching_tmc2gmns.csv',index = False)
     print('matching_tmc2gmns.csv generated!')
+
+    # matching_name_base_counts = matching_tmc2gmns['name_base'].value_counts()
+    # link_base = link_base[link_base['name'].isin(matching_name_base_counts[matching_name_base_counts>30].index)]
+    # link_base = link_base.reset_index()
+    # link_base = link_base.drop(['index'], 1)
+    # # link_base.to_csv('link_base_small.csv',index = False)
+
+
+    # ''' extract base route '''
+    # link_base_iteration = link_base 
+    # base_route_dict = {}
+    # i = 0
+    # while len(link_base_iteration)>0:
+    #     k = link_base_iteration.index[0]
+    #     base_route_index_list = []
+    #     base_route_list = []
+    #     base_route_index_list.append(k)
+    #     base_route_list.append(link_base.loc[k,'from_node_id'])
+    #     base_route_list.append(link_base.loc[k,'to_node_id'])
+    #     link_base_iteration = link_base_iteration.drop(k)
+
+    #     selected_link_base_row = link_base_iteration[link_base_iteration['from_node_id'] == base_route_list[-1]]
+    #     while len(selected_link_base_row) != 0:
+    #         base_route_list.append(selected_link_base_row['to_node_id'].values[0])
+    #         base_route_index_list.append(selected_link_base_row.index.values[0])
+    #         link_base_iteration = link_base_iteration.drop(selected_link_base_row.index.values[0])
+    #         selected_link_base_row = link_base_iteration[link_base_iteration['from_node_id'] == base_route_list[-1]]
+
+    #     selected_link_base_row = link_base_iteration[link_base_iteration['to_node_id'] == base_route_list[0]]
+    #     while len(selected_link_base_row) != 0:
+    #         base_route_list.insert(0,selected_link_base_row['from_node_id'].values[0])
+    #         base_route_index_list.insert(0,selected_link_base_row.index.values[0])
+    #         link_base_iteration = link_base_iteration.drop(selected_link_base_row.index.values[0])
+    #         selected_link_base_row = link_base_iteration[link_base_iteration['to_node_id'] == base_route_list[0]]
+
+    #     base_route_dict[i] = {
+    #         'base_route_list':base_route_list,
+    #         'base_route_index_list':base_route_index_list
+    #     }
+    #     i+=1
+
+
+    # ''' extract tmc route'''
+    # tmc_route_dict = {}
+    # gp = matching_tmc2gmns.groupby('corridor_id_tmc')
+    # for key, form in gp:
+    #     tmc_route_dict[key] = {
+    #         'from_node_id_base':set(form['from_node_id_base'].tolist()),
+    #         'tmc_index':list(form.index.values)
+    #         }
+
+
+    # base_route_tmc_dict = {}
+    # k=0
+    # for i in range(len(base_route_dict)):
+    #     for key, value in tmc_route_dict.items():
+    #         base_route_tmc_dict[k] = {'base_route':i,
+    #         'corridor': key,
+    #         'tmc_index':value['tmc_index'],
+    #         'number': int(len(set(base_route_dict[i]['base_route_list']).intersection(value['from_node_id_base'])))}
+    #         k+=1
+
+    # base_route_tmc = pd.DataFrame(base_route_tmc_dict).transpose()     
+
+    # base_tmc_dict = {}
+    # gp = base_route_tmc.groupby('base_route')
+    # for key, form in gp:
+    #     base_tmc_dict[key] = {
+    #         'corridor':form.loc[pd.to_numeric(form['number']).idxmax()]['corridor']
+    #         }
+    # base_tmc = pd.DataFrame(base_tmc_dict).transpose() 
+    # tmc_base_dict = {}
+    # gp = base_tmc.groupby('corridor')
+    # for key, form in gp:
+    #     tmc_base_dict[key] = list(form.index.values)
+
+
+    # '''second matching'''
+    # matching_tmc2gmns_dict = {}
+    # k = 0
+    # p = 1
+    # tmc_count = 0
+    # for key, value in tmc_base_dict.items():
+    #     link_tmc_sub = link_tmc[link_tmc['corridor_id'] == key]
+    #     base_link_list_sub = []
+    #     for base_route_id in value:
+    #         base_link_list_sub += base_route_dict[base_route_id]['base_route_index_list']
+    #     link_base_sub = link_base.loc[base_link_list_sub]
+
+
+    #     for j in link_tmc_sub.index:
+    #         lon_tmc_list = []
+    #         lat_tmc_list = []
+    #         link_tmc_geometry_list = link_tmc_sub.loc[j,'geometry'][12:-1].split(",")
+    #         for link_tmc_geometry in link_tmc_geometry_list:
+    #             lon_tmc_list.append(float(link_tmc_geometry.split(" ")[0]))
+    #             lat_tmc_list.append(float(link_tmc_geometry.split(" ")[1]))
+    #         center_tmc_lon = np.mean(lon_tmc_list)
+    #         center_tmc_lat = np.mean(lat_tmc_list)
+    #         tmc_lon_1 = lon_tmc_list[0]
+    #         tmc_lon_2 = lon_tmc_list[-1]
+    #         tmc_lat_1 = lat_tmc_list[0]
+    #         tmc_lat_2 = lat_tmc_list[-1]
+    #         if getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)>180:
+    #             angle_tmc = getDegree(tmc_lat_2,tmc_lon_2,tmc_lat_1,tmc_lon_1)
+    #         else:
+    #             angle_tmc = getDegree(tmc_lat_1,tmc_lon_1,tmc_lat_2,tmc_lon_2)
+
+    #         for dividing_rate in range(1,51):
+    #             end_point_tmc = LineString([(tmc_lon_1, tmc_lat_1),  (tmc_lon_2, tmc_lat_2)]).interpolate(dividing_rate/50, normalized=True)
+    #             start_point_tmc = LineString([(tmc_lon_1, tmc_lat_1),  (tmc_lon_2, tmc_lat_2)]).interpolate((dividing_rate-1)/50, normalized=True)
+
+    #             distance_list = []
+    #             angle_list = []
+    #             for i in link_base_sub.index:
+    #                 lon_list = []
+    #                 lat_list = [] 
+    #                 point_base_list = []
+    #                 link_geometry_list = link_base_sub.loc[i,'geometry'][12:-1].split(", ")
+    #                 for link_geometry in link_geometry_list:
+    #                     lon_list.append(float(link_geometry.split(" ")[0]))
+    #                     lat_list.append(float(link_geometry.split(" ")[1]))
+    #                     point_base_list.append(tuple([float(link_geometry.split(" ")[0]),float(link_geometry.split(" ")[1])]))
+    #                 base_line = geom.LineString(tuple(point_base_list))
+    #                 '''distance'''
+    #                 distance_list.append(start_point_tmc.distance(base_line))
+                    
+    #                 '''angle '''
+    #                 base_lon_1 = lon_list[0]
+    #                 base_lon_2 = lon_list[-1]
+    #                 base_lat_1 = lat_list[0]
+    #                 base_lat_2 = lat_list[-1]
+    #                 if getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)>180:
+    #                     angle_base = getDegree(base_lat_2,base_lon_2,base_lat_1,base_lon_1)
+    #                 else:
+    #                     angle_base = getDegree(base_lat_1,base_lon_1,base_lat_2,base_lon_2)
+                    
+
+    #                 if abs(angle_tmc - angle_base) >= 90:
+    #                     relative_angle = 180 - abs(angle_tmc - angle_base)
+    #                 else:
+    #                     relative_angle = abs(angle_tmc - angle_base)
+    #                 angle_list.append(relative_angle)
+
+    #             small_angle_list = [i for i, value in enumerate(angle_list) if value < 45]
+    #             df_distance = pd.DataFrame({'distance':distance_list})
+                
+    #             nearest_index = df_distance.loc[small_angle_list].idxmin().values[0]
+
+    #             matching_tmc2gmns_dict[k] = {'name_tmc':link_tmc_sub.loc[j]['name'],\
+    #                                         'corridor_id_tmc':link_tmc_sub.loc[j]['corridor_id'],\
+    #                                         'link_id_tmc':link_tmc_sub.loc[[j]].index.values[0],\
+    #                                         'from_node_id_tmc':link_tmc_sub.loc[j]['from_node_id'],\
+    #                                         'to_node_id_tmc':link_tmc_sub.loc[j]['to_node_id'],\
+    #                                         'category_id_tmc':link_tmc_sub.index.get_loc(j)+1,\
+    #                                         'geometry_tmc':link_tmc_sub.loc[j]['geometry'],\
+    #                                         # 'name_base':link_base_sub.iloc[nearest_index]['name'],\
+    #                                         'link_id_base':link_base_sub.iloc[nearest_index]['link_id'],\
+    #                                         'from_node_id_base':link_base_sub.iloc[nearest_index]['from_node_id'],\
+    #                                         'to_node_id_base':link_base_sub.iloc[nearest_index]['to_node_id'],\
+    #                                         'category_id_base':link_tmc_sub.index.get_loc(j)+1,\
+    #                                         'geometry_base':link_base_sub.iloc[nearest_index]['geometry'],\
+    #                                         'distance':min(distance_list),\
+    #                                         'geometry_tmc_base':'MULTILINESTRING ('+ link_tmc_sub.loc[j]['geometry'][11:] + \
+    #                                                             ', ' + link_base_sub.iloc[nearest_index]['geometry'][11:]+')'}
+    #             k += 1
+
+    #         tmc_count += 1
+    #         if tmc_count > p/10 * len(link_tmc): 
+    #             print(str(p*10)+"%"+' matching completed!')
+    #             p = p + 1
+            
+
+    # matching_tmc2gmns = pd.DataFrame(matching_tmc2gmns_dict).transpose()
+    # matching_tmc2gmns_drop_duplicates = matching_tmc2gmns.drop(columns=['distance']).drop_duplicates()
+    # matching_tmc2gmns_drop_duplicates['distance'] = matching_tmc2gmns.loc[matching_tmc2gmns_drop_duplicates.index]['distance']
+    # matching_tmc2gmns_drop_duplicates = matching_tmc2gmns_drop_duplicates.reset_index()
+    # matching_tmc2gmns_drop_duplicates = matching_tmc2gmns_drop_duplicates.drop(['index'], 1)
+    # matching_tmc2gmns = matching_tmc2gmns_drop_duplicates
+
+    # matching_tmc2gmns.to_csv('matching_tmc2gmns.csv',index = False)
+    # print('matching_tmc2gmns.csv generated!')
 
 
 def ConvertMeasurementBasedOnMatching(link_base,matching_tmc2gmns,measurement_tmc):
